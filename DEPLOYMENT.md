@@ -326,10 +326,7 @@ export DO_API_KEY="your_digital_ocean_api_token_here"
 
 ```bash
 # Issue certificate using Digital Ocean DNS validation
-acme.sh --issue \
-  --dns dns_dgon \
-  -d vesta.yourdomain.com \
-  --keylength ec-256
+acme.sh --issue --dns dns_dgon -d vesta.yourdomain.com --keylength ec-256
 
 # This will:
 # - Create a DNS TXT record for validation
@@ -364,16 +361,19 @@ version: '3.8'
 
 services:
   vesta:
-    build: ./app
+    build:
+      context: .
+      dockerfile: app/Dockerfile
     container_name: vesta
     restart: unless-stopped
     ports:
-      - "443:8000"  # Changed from 8000:8000
+      - "8000:8000"
+      - "443:8000"
     volumes:
       - ./packages/vesta_ml/models:/app/packages/vesta_ml/models:ro
       - ./packages/vesta_ml/data:/app/packages/vesta_ml/data:ro
       - vesta-instance:/app/instance
-      - /etc/vesta/certs:/app/certs:ro  # Mount SSL certificates
+      - /etc/vesta/certs:/app/certs:ro
     environment:
       - FLASK_ENV=production
       - PYTHONUNBUFFERED=1
