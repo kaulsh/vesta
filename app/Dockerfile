@@ -28,17 +28,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy Python dependencies from builder
 COPY --from=builder /root/.local /root/.local
 
-# Copy application code
-COPY app/ .
-
 # Copy the vesta_ml package
 COPY packages/vesta_ml /app/packages/vesta_ml
+
+# Copy application code (as a module)
+COPY app /app/app
 
 # Install vesta_ml package
 RUN pip install --no-cache-dir -e /app/packages/vesta_ml
 
 # Create instance directory for SQLite database
-RUN mkdir -p /app/instance
+RUN mkdir -p /app/app/instance
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
