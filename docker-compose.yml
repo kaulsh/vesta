@@ -11,7 +11,7 @@ services:
     volumes:
       - ./packages/vesta_ml/models:/app/packages/vesta_ml/models:ro
       - ./packages/vesta_ml/data:/app/packages/vesta_ml/data:ro
-      - vesta-instance:/app/app/instance
+      - vesta-instance:/app/instance # do not change this path, it is used by the app
       - /etc/vesta/certs:/app/certs:ro
     environment:
       - FLASK_ENV=production
