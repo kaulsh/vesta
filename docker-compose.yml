@@ -1,25 +1,48 @@
 services:
-  vesta:
+  # HTTPS service (main application)
+  vesta-https:
     build:
       context: .
       dockerfile: app/Dockerfile
-    container_name: vesta
+    container_name: vesta-https
     restart: unless-stopped
     ports:
-      # - "8000:8000" 
-      - "443:8000"  # Map host port 443 to container port 8000
+      - "443:8000"  # HTTPS traffic
     volumes:
       - ./packages/vesta_ml/models:/app/packages/vesta_ml/models:ro
       - ./packages/vesta_ml/data:/app/packages/vesta_ml/data:ro
-      - vesta-instance:/app/instance
+      - vesta-instance:/app/app/instance
       - /etc/vesta/certs:/app/certs:ro
     environment:
       - FLASK_ENV=production
       - PYTHONUNBUFFERED=1
       - SSL_CERT=/app/certs/fullchain.pem
       - SSL_KEY=/app/certs/key.pem
+      - REDIRECT_TO_HTTPS=false
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request, ssl; ctx = ssl._create_unverified_context(); urllib.request.urlopen('https://localhost:8000/', context=ctx).read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # HTTP redirect service (lightweight, redirects to HTTPS)
+  vesta-http:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    container_name: vesta-http
+    restart: unless-stopped
+    ports:
+      - "80:8000"  # HTTP traffic
+    volumes:
+      - vesta-instance:/app/app/instance
+    environment:
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+      - REDIRECT_TO_HTTPS=true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/').read()"]
       interval: 30s
       timeout: 10s
       retries: 3
