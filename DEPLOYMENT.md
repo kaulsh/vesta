@@ -828,16 +828,51 @@ For issues:
 **🎉 Congratulations! Your Vesta application is now deployed and running on Digital Ocean.**
 
 ---
+****
+## Database Backup
 
-## Some useful commands
+### Backup from Local Machine
+
+Run this command from your local machine to download a backup:
+
+```bash
+# Option 1: Direct copy via SSH (recommended)
+ssh USER@MACHINE_IP "docker exec vesta-https cat /app/instance/vesta.db" > /path/to/local/backup/vesta_backup_$(date +%Y%m%d_%H%M%S).db
+
+# Option 2: Using scp (two-step process)
+# First, create backup on droplet
+ssh USER@MACHINE_IP "docker exec vesta-https cat /app/instance/vesta.db > ~/vesta_backup.db"
+# Then download it
+scp USER@MACHINE_IP:~/vesta_backup.db /path/to/local/backup/vesta_backup_$(date +%Y%m%d_%H%M%S).db
+# Finally, clean up on droplet
+ssh USER@MACHINE_IP "rm ~/vesta_backup.db"
+```
+
+Replace `/path/to/local/backup/` with your desired local directory (e.g., `~/backups/vesta/`).
+
+### Restore from Backup
+
+```bash
+# From local machine, restore a backup to the droplet
+scp /path/to/local/backup/vesta_backup.db USER@MACHINE_IP:~/
+ssh USER@MACHINE_IP "docker cp ~/vesta_backup.db vesta-https:/app/instance/vesta.db && docker restart vesta-https"
+```
+
+---
+****
+## Database Management
+
+### Access SQLite Database
 
 ```sh
 # Option A: Access from the running container
-docker exec -it vesta sqlite3 /app/app/instance/vesta.db
+docker exec -it vesta-https sqlite3 /app/instance/vesta.db
 
-# Access sqlitedb through volume directly (requires sudo)
-sudo sqlite3 $(docker volume inspect vesta_vesta-instance --format '{{ .Mountpoint }}')/vesta.db
+# Option B: Access sqlitedb through volume directly (requires sudo)
+sudo sqlite3 $(docker volume inspect vesta_vesta-instance --format '{{ .Mountpoint }}')/app/instance/vesta.db
 ```
+
+### Useful SQL Commands
 
 ```sql
 .headers on
