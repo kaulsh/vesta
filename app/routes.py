@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 
 import numpy as np
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, redirect, url_for
 
 from vesta_ml.predictor import CyclePredictor
 
@@ -111,6 +111,8 @@ def index():
             if end_dt < start_dt:
                 raise ValueError("End date must be on or after start date.")
             insert_cycle(start_date, end_date)
+            # Redirect to prevent form resubmission on refresh
+            return redirect(url_for("main.index"))
         except ValueError as exc:
             error = str(exc) or "Invalid date input."
 
