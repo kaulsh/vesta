@@ -6,7 +6,8 @@ services:
     container_name: vesta
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      # - "8000:8000" 
+      - "443:8000"  # Map host port 443 to container port 8000
     volumes:
       - ./packages/vesta_ml/models:/app/packages/vesta_ml/models:ro
       - ./packages/vesta_ml/data:/app/packages/vesta_ml/data:ro
@@ -18,7 +19,7 @@ services:
       - SSL_CERT=/app/certs/fullchain.pem
       - SSL_KEY=/app/certs/key.pem
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('https://localhost:8000/').read()"]
+      test: ["CMD", "python", "-c", "import urllib.request, ssl; ctx = ssl._create_unverified_context(); urllib.request.urlopen('https://localhost:8000/', context=ctx).read()"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -70,3 +70,4 @@ logs/
 !packages/vesta_ml/notebooks/.gitkeep
 
 instance
+*.tar.gz
