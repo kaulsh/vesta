@@ -308,8 +308,8 @@
         </section>
 
         <section class="prediction">
-          <h2>Next cycle start date</h2>
           {% if prediction %}
+            <h2>Next cycle should start on:</h2>
             <div class="date">{{ prediction.predicted_next_start_date }}</div>
             <div class="muted">
               This prediction is a highly probable estimate based on your personalized model.
@@ -321,6 +321,8 @@
             <div class="range">
               Cycle length: {{ prediction.predicted_cycle_length }} days
             </div>
+          {% else %}
+            <h2>Uh oh! No prediction available.</h2>
           {% endif %}
 
           {% if error %}
