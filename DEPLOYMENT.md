@@ -826,3 +826,38 @@ For issues:
 ---
 
 **🎉 Congratulations! Your Vesta application is now deployed and running on Digital Ocean.**
+
+---
+
+## Some useful commands
+
+```sh
+# Option A: Access from the running container
+docker exec -it vesta sqlite3 /app/app/instance/vesta.db
+
+# Access sqlitedb through volume directly (requires sudo)
+sudo sqlite3 $(docker volume inspect vesta_vesta-instance --format '{{ .Mountpoint }}')/vesta.db
+```
+
+```sql
+.headers on
+.mode box
+
+SELECT id, start_date, end_date, created_at FROM cycles ORDER BY id;
+
+DELETE FROM cycles WHERE id = 2;
+
+SELECT id, start_date, end_date FROM cycles ORDER BY id;
+
+-- Update both start_date and end_date
+UPDATE cycles SET start_date = '2024-01-15', end_date = '2024-01-20' WHERE id = 2;
+
+-- Update only start_date
+UPDATE cycles SET start_date = '2024-01-15' WHERE id = 2;
+
+-- Update only end_date
+UPDATE cycles SET end_date = '2024-01-20' WHERE id = 2;
+
+-- Verify the update
+SELECT id, start_date, end_date, created_at FROM cycles ORDER BY id;
+```
