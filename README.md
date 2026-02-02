@@ -38,6 +38,13 @@ python -m flask --app app:create_app --debug run
 
 The app stores data in `instance/vesta.db` and predicts once six cycles are saved.
 
+## Deployment
+
+**Digital Ocean Droplet**
+- [Complete Deployment Guide](./DEPLOYMENT.md) - $4-6/month
+- Includes model training, Docker setup, and optional HTTPS with SSL
+- Docker-based with persistent SQLite storage
+
 ## Data format
 
 Your CSV should look like:

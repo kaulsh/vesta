@@ -55,5 +55,15 @@ RUN pip install --no-cache-dir gunicorn
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/').read()"
 
-# Run the application with gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "1", "--threads", "2", "--timeout", "60", "app:create_app()"]
+# Run the application with gunicorn (with SSL support if certificates provided)
+CMD if [ -f "${SSL_CERT:-}" ] && [ -f "${SSL_KEY:-}" ]; then \
+      gunicorn --bind 0.0.0.0:8000 \
+               --certfile="${SSL_CERT}" \
+               --keyfile="${SSL_KEY}" \
+               --workers 2 --threads 2 --timeout 60 \
+               "app:create_app()"; \
+    else \
+      gunicorn --bind 0.0.0.0:8000 \
+               --workers 2 --threads 2 --timeout 60 \
+               "app:create_app()"; \
+    fi

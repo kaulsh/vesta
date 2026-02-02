@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  vesta:
+    build: ./app
+    container_name: vesta
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount trained models as read-only (train these on the droplet before deploying)
+      - ./packages/vesta_ml/models:/app/packages/vesta_ml/models:ro
+      # Mount preprocessed data as read-only
+      - ./packages/vesta_ml/data:/app/packages/vesta_ml/data:ro
+      # Persist SQLite database across restarts
+      - vesta-instance:/app/instance
+    environment:
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  vesta-instance:
+    driver: local
