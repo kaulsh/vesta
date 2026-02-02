@@ -1,8 +1,8 @@
-version: '3.8'
-
 services:
   vesta:
-    build: ./app
+    build:
+      context: .
+      dockerfile: app/Dockerfile
     container_name: vesta
     restart: unless-stopped
     ports:

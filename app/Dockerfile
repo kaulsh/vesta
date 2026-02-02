@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
-COPY ../requirements.txt .
+COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --user -r requirements.txt
@@ -29,10 +29,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /root/.local /root/.local
 
 # Copy application code
-COPY . .
+COPY app/ .
 
 # Copy the vesta_ml package
-COPY ../packages/vesta_ml /app/packages/vesta_ml
+COPY packages/vesta_ml /app/packages/vesta_ml
 
 # Install vesta_ml package
 RUN pip install --no-cache-dir -e /app/packages/vesta_ml
