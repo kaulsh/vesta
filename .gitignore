@@ -33,24 +33,19 @@ venv.bak/
 .ipynb_checkpoints
 *.ipynb
 
-# PyTorch
-*.pt
-*.pth
-
 # Data
-data/raw/*.csv
-data/processed/*.npz
-data/processed/*.pkl
+packages/vesta_ml/data/raw/*.csv
+packages/vesta_ml/data/processed/*.npz
+packages/vesta_ml/data/processed/*.pkl
 
 # Models
-models/random_forest/*.pkl
-models/lstm/*.pt
-models/lstm/*.pth
+packages/vesta_ml/models/random_forest/*.pkl
+packages/vesta_ml/models/random_forest/*.json
 
 # Results
-results/*.png
-results/*.json
-results/*.csv
+packages/vesta_ml/results/*.png
+packages/vesta_ml/results/*.json
+packages/vesta_ml/results/*.csv
 
 # IDEs
 .vscode/
@@ -67,14 +62,11 @@ Thumbs.db
 *.log
 logs/
 
-# Optuna
-.optuna/
-optuna.db
-
 # Keep directory structure
-!data/raw/.gitkeep
-!data/processed/.gitkeep
-!models/random_forest/.gitkeep
-!models/lstm/.gitkeep
-!results/.gitkeep
-!notebooks/.gitkeep
+!packages/vesta_ml/data/raw/.gitkeep
+!packages/vesta_ml/data/processed/.gitkeep
+!packages/vesta_ml/models/random_forest/.gitkeep
+!packages/vesta_ml/results/.gitkeep
+!packages/vesta_ml/notebooks/.gitkeep
+
+instance

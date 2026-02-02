@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: vesta
+    runtime: python
+    region: frankfurt
+    plan: free
+    branch: main
+    rootDir: app
+    buildCommand: |
+      cd ..
+      pip install -r requirements.txt
+      pip install -e packages/vesta_ml
+      cd app
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 60 'app:create_app()'
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: FLASK_ENV
+        value: production
+      - key: PYTHONUNBUFFERED
+        value: 1
+    disk:
+      name: vesta-data
+      mountPath: /opt/render/project/src
+      sizeGB: 1  # Stores both SQLite DB and trained models
+    healthCheckPath: /
