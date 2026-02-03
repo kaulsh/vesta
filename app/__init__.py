@@ -23,6 +23,8 @@ def create_app(redirect_to_https: bool = False) -> Flask:
             # Get the host from the request
             host = request.host.split(':')[0]  # Remove port if present
             return redirect(f'https://{host}{request.path}', code=301)
+        # Skip database and route initialization for redirect-only instance
+        return app
     
     init_db(app)
     app.register_blueprint(main_bp)

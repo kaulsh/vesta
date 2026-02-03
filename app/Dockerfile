@@ -59,8 +59,10 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 CMD if [ "${REDIRECT_TO_HTTPS}" = "true" ]; then \
       # HTTP redirect instance (lightweight, no SSL, minimal workers)
       gunicorn --bind 0.0.0.0:8000 \
-               --workers 1 --threads 1 --timeout 30 \
-               --preload \
+               --workers 2 --threads 2 --timeout 120 \
+               --worker-class sync \
+               --graceful-timeout 30 \
+               --keep-alive 5 \
                "app:create_app(redirect_to_https=True)"; \
     elif [ -f "${SSL_CERT:-}" ] && [ -f "${SSL_KEY:-}" ]; then \
       # HTTPS instance with SSL
