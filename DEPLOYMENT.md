@@ -2,6 +2,8 @@
 
 Complete guide for deploying Vesta on a Digital Ocean droplet using Docker.
 
+**Build vs Run:** This repository provides only the **image build** (see Section 5). The image is built here and then run via your own `docker-compose` elsewhere—e.g., in a separate deployment repo or on your droplet.
+
 **Why Digital Ocean?**
 - ✅ Persistent storage for SQLite database
 - ✅ Predictable performance (always-on)
@@ -169,51 +171,65 @@ ls -lh data/processed/
 
 ---
 
-## 5. Deploy with Docker Compose
+## 5. Build the Image
 
-The repository includes a `docker-compose.yml` file for easy deployment.
+This repository only builds the Docker image. Run it from your own `docker-compose` elsewhere.
 
-### Start the Application
+### Build
 
 ```bash
 # From the project root
 cd ~/vesta
 
-# Build and start the container in detached mode
-docker-compose up -d
+# Option A: Use the build script
+./build.sh
 
-# This will:
-# - Build the Docker image
-# - Start the container
-# - Mount models and data as read-only volumes
-# - Create a persistent volume for the SQLite database
-# - Expose the app on port 8000
+# Option B: Use docker build directly
+docker build -t vesta:latest -f app/Dockerfile .
 ```
 
-### Verify Deployment
+This produces the image `vesta:latest`. To push to a registry (e.g., for use on another machine):
 
 ```bash
-# Check if container is running
-docker-compose ps
+docker tag vesta:latest your-registry/vesta:latest
+docker push your-registry/vesta:latest
+```
 
-# Should show:
-# NAME    IMAGE        STATUS   PORTS
-# vesta   vesta_vesta  Up       0.0.0.0:8000->8000/tcp
+### Use the Image in Your Deployment
 
-# View logs
-docker-compose logs -f
+In your deployment directory (e.g., another repo or `~/deploy/vesta`), create a `docker-compose.yml` that uses the built image:
 
-# Test the application
-curl http://localhost:8000
+```yaml
+services:
+  vesta:
+    image: vesta:latest  # or your-registry/vesta:latest
+    container_name: vesta
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - /path/to/vesta/packages/vesta_ml/models:/app/packages/vesta_ml/models:ro
+      - /path/to/vesta/packages/vesta_ml/data:/app/packages/vesta_ml/data:ro
+      - vesta-instance:/app/instance
+    environment:
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
 
-# Access from browser
-# Visit: http://your_droplet_ip:8000
+volumes:
+  vesta-instance:
+    driver: local
+```
+
+Then:
+
+```bash
+docker compose up -d
 ```
 
 ### Seed Initial Data (Optional)
 
 ```bash
-# Run the seed script inside the container
+# Run the seed script inside the container (use your container name)
 docker exec -it vesta python seed_cycles.py
 
 # This adds 6 sample cycles so predictions work immediately
@@ -221,28 +237,28 @@ docker exec -it vesta python seed_cycles.py
 
 ---
 
-## 6. Docker Compose Commands
+## 6. Docker Compose Commands (in Your Deployment)
 
-Common commands for managing your deployment:
+Common commands for managing your deployment (run from your deployment directory):
 
 ```bash
 # View logs (live)
-docker-compose logs -f
+docker compose logs -f
 
 # View logs (last 100 lines)
-docker-compose logs --tail=100
+docker compose logs --tail=100
 
 # Restart the application
-docker-compose restart
+docker compose restart
 
 # Stop the application
-docker-compose down
+docker compose down
 
 # Stop and remove volumes (WARNING: deletes database)
-docker-compose down -v
+docker compose down -v
 
-# Rebuild and restart (after code changes)
-docker-compose up -d --build
+# Rebuild and restart (after pulling new image)
+docker compose pull && docker compose up -d
 
 # Check resource usage
 docker stats vesta
@@ -349,29 +365,24 @@ acme.sh --install-cert \
   --cert-file /etc/vesta/certs/cert.pem \
   --key-file /etc/vesta/certs/key.pem \
   --fullchain-file /etc/vesta/certs/fullchain.pem \
-  --reloadcmd "cd ~/vesta && docker-compose restart"
+  --reloadcmd "cd ~/your-deployment-dir && docker compose restart"
 ```
 
-### 8.6. Update Docker Configuration
+### 8.6. Update Your Deployment Docker Compose (HTTPS)
 
-**Update `docker-compose.yml`:**
+In your deployment `docker-compose.yml`, add SSL volumes and environment variables:
 
 ```yaml
-version: '3.8'
-
 services:
   vesta:
-    build:
-      context: .
-      dockerfile: app/Dockerfile
+    image: vesta:latest
     container_name: vesta
     restart: unless-stopped
     ports:
-      - "8000:8000"
       - "443:8000"
     volumes:
-      - ./packages/vesta_ml/models:/app/packages/vesta_ml/models:ro
-      - ./packages/vesta_ml/data:/app/packages/vesta_ml/data:ro
+      - /path/to/vesta/packages/vesta_ml/models:/app/packages/vesta_ml/models:ro
+      - /path/to/vesta/packages/vesta_ml/data:/app/packages/vesta_ml/data:ro
       - vesta-instance:/app/instance
       - /etc/vesta/certs:/app/certs:ro
     environment:
@@ -379,48 +390,26 @@ services:
       - PYTHONUNBUFFERED=1
       - SSL_CERT=/app/certs/fullchain.pem
       - SSL_KEY=/app/certs/key.pem
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('https://localhost:8000/').read()"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
 volumes:
   vesta-instance:
     driver: local
 ```
 
-**Update `app/Dockerfile` to use SSL in Gunicorn:**
-
-Add before the CMD line:
-```dockerfile
-# Run with SSL if certificates are provided
-CMD if [ -f "${SSL_CERT}" ] && [ -f "${SSL_KEY}" ]; then \
-      gunicorn --bind 0.0.0.0:8000 \
-               --certfile="${SSL_CERT}" \
-               --keyfile="${SSL_KEY}" \
-               --workers 2 --threads 2 --timeout 60 \
-               "app:create_app()"; \
-    else \
-      gunicorn --bind 0.0.0.0:8000 \
-               --workers 2 --threads 2 --timeout 60 \
-               "app:create_app()"; \
-    fi
-```
+The image already supports SSL via Gunicorn when `SSL_CERT` and `SSL_KEY` point to valid files.
 
 ### 8.7. Restart with HTTPS
 
 ```bash
-cd ~/vesta
+cd ~/your-deployment-dir
 
 # Update firewall
 sudo ufw allow 443/tcp
 sudo ufw delete allow 8000/tcp  # Remove HTTP if you only want HTTPS
 
-# Rebuild and restart
-docker-compose down
-docker-compose up -d --build
+# Restart
+docker compose down
+docker compose up -d
 
 # Test HTTPS
 curl https://vesta.yourdomain.com
@@ -459,9 +448,9 @@ cd ~/vesta/packages/vesta_ml
 python scripts/preprocess.py
 python scripts/train.py
 
-# Restart to reload models
-cd ~/vesta
-docker-compose restart
+# Restart to reload models (from your deployment directory)
+cd ~/your-deployment-dir
+docker compose restart
 ```
 
 **Or retrain inside the container:**
@@ -472,8 +461,8 @@ python scripts/preprocess.py
 python scripts/train.py
 exit
 
-# Restart
-docker-compose restart
+# Restart (from your deployment directory)
+cd ~/your-deployment-dir && docker compose restart
 ```
 
 ### Backup Models
@@ -502,12 +491,12 @@ crontab -e
 
 ### How Docker Volumes Work
 
-The `docker-compose.yml` mounts models as read-only:
+Your deployment `docker-compose.yml` should mount models as read-only:
 
 ```yaml
 volumes:
-  - ./packages/vesta_ml/models:/app/packages/vesta_ml/models:ro
-  - ./packages/vesta_ml/data:/app/packages/vesta_ml/data:ro
+  - /path/to/vesta/packages/vesta_ml/models:/app/packages/vesta_ml/models:ro
+  - /path/to/vesta/packages/vesta_ml/data:/app/packages/vesta_ml/data:ro
 ```
 
 This means:
@@ -571,12 +560,16 @@ python scripts/preprocess.py
 python scripts/train.py
 cd ../..
 
-# Rebuild and restart
-docker-compose down
-docker-compose up -d --build
+# Rebuild the image
+./build.sh
+
+# In your deployment directory: pull/use new image and restart
+cd ~/your-deployment-dir
+docker compose down
+docker compose up -d
 
 # View logs to ensure it started correctly
-docker-compose logs -f
+docker compose logs -f
 ```
 
 ---
@@ -586,14 +579,14 @@ docker-compose logs -f
 ### View Logs
 
 ```bash
-# Application logs (follow mode)
-docker-compose logs -f
+# Application logs (follow mode) - from your deployment directory
+docker compose logs -f
 
 # Last 100 lines
-docker-compose logs --tail=100
+docker compose logs --tail=100
 
 # Specific service
-docker-compose logs vesta
+docker compose logs vesta
 ```
 
 ### Resource Monitoring
@@ -627,7 +620,7 @@ Create `~/check_health.sh`:
 #!/bin/bash
 if ! curl -f http://localhost:8000 > /dev/null 2>&1; then
     echo "$(date): Vesta is down! Restarting..." >> ~/health-check.log
-    cd ~/vesta && docker-compose restart
+    cd ~/your-deployment-dir && docker compose restart
 fi
 ```
 
@@ -689,8 +682,8 @@ docker update --memory="512m" --memory-swap="512m" vesta
 ### Container Won't Start
 
 ```bash
-# Check logs
-docker-compose logs vesta
+# Check logs (from your deployment directory)
+docker compose logs vesta
 
 # Check Docker daemon
 sudo systemctl status docker
@@ -710,9 +703,9 @@ cd ~/vesta/packages/vesta_ml
 python scripts/preprocess.py
 python scripts/train.py
 
-# Restart
-cd ~/vesta
-docker-compose restart
+# Restart (from your deployment directory)
+cd ~/your-deployment-dir
+docker compose restart
 ```
 
 ### Port Already in Use
@@ -721,7 +714,7 @@ docker-compose restart
 # Find what's using the port
 sudo lsof -i :8000  # or :443 for HTTPS
 
-# Kill the process or change port in docker-compose.yml
+# Kill the process or change port in your deployment docker-compose.yml
 ```
 
 ### Permission Issues
@@ -777,23 +770,30 @@ docker stats vesta
 
 ## 16. Quick Reference
 
-### Essential Commands
+### Build (in this repo)
+
+```bash
+./build.sh
+# or: docker build -t vesta:latest -f app/Dockerfile .
+```
+
+### Essential Commands (in your deployment directory)
 
 ```bash
 # Start application
-docker-compose up -d
+docker compose up -d
 
 # Stop application
-docker-compose down
+docker compose down
 
 # Restart
-docker-compose restart
+docker compose restart
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 
-# Rebuild after changes
-docker-compose up -d --build
+# Pull new image and restart
+docker compose pull && docker compose up -d
 
 # Access shell
 docker exec -it vesta bash
@@ -801,24 +801,24 @@ docker exec -it vesta bash
 # Backup database
 docker cp vesta:/app/instance/vesta.db ~/backups/
 
-# Update code
-git pull && docker-compose up -d --build
+# Update: build here, then in deployment dir: docker compose pull && docker compose up -d
 ```
 
 ### File Locations
 
-- **Application code**: `~/vesta/`
+- **This repo (build)**: `~/vesta/`
 - **Models**: `~/vesta/packages/vesta_ml/models/`
+- **Deployment**: Your own directory with docker-compose
 - **Database**: Docker volume `vesta-instance` (persistent)
 - **SSL certificates**: `/etc/vesta/certs/` (if using HTTPS)
-- **Logs**: `docker-compose logs vesta`
+- **Logs**: `docker compose logs vesta` (from deployment dir)
 
 ---
 
 ## Support
 
 For issues:
-1. Check application logs: `docker-compose logs vesta`
+1. Check application logs: `docker compose logs vesta` (from deployment dir)
 2. Verify models exist: `ls ~/vesta/packages/vesta_ml/models/random_forest/`
 3. Test locally: `curl http://localhost:8000`
 4. Check GitHub issues or create a new one
@@ -837,11 +837,12 @@ Run this command from your local machine to download a backup:
 
 ```bash
 # Option 1: Direct copy via SSH (recommended)
-ssh USER@MACHINE_IP "docker exec vesta-https cat /app/instance/vesta.db" > /path/to/local/backup/vesta_backup_$(date +%Y%m%d_%H%M%S).db
+# Replace 'vesta' with your container name if different
+ssh USER@MACHINE_IP "docker exec vesta cat /app/instance/vesta.db" > /path/to/local/backup/vesta_backup_$(date +%Y%m%d_%H%M%S).db
 
 # Option 2: Using scp (two-step process)
 # First, create backup on droplet
-ssh USER@MACHINE_IP "docker exec vesta-https cat /app/instance/vesta.db > ~/vesta_backup.db"
+ssh USER@MACHINE_IP "docker exec vesta cat /app/instance/vesta.db > ~/vesta_backup.db"
 # Then download it
 scp USER@MACHINE_IP:~/vesta_backup.db /path/to/local/backup/vesta_backup_$(date +%Y%m%d_%H%M%S).db
 # Finally, clean up on droplet
@@ -855,7 +856,7 @@ Replace `/path/to/local/backup/` with your desired local directory (e.g., `~/bac
 ```bash
 # From local machine, restore a backup to the droplet
 scp /path/to/local/backup/vesta_backup.db USER@MACHINE_IP:~/
-ssh USER@MACHINE_IP "docker cp ~/vesta_backup.db vesta-https:/app/instance/vesta.db && docker restart vesta-https"
+ssh USER@MACHINE_IP "docker cp ~/vesta_backup.db vesta:/app/instance/vesta.db && docker restart vesta"
 ```
 
 ---
@@ -866,10 +867,12 @@ ssh USER@MACHINE_IP "docker cp ~/vesta_backup.db vesta-https:/app/instance/vesta
 
 ```sh
 # Option A: Access from the running container
-docker exec -it vesta-https sqlite3 /app/instance/vesta.db
+# Replace 'vesta' with your container name if different
+docker exec -it vesta sqlite3 /app/instance/vesta.db
 
 # Option B: Access sqlitedb through volume directly (requires sudo)
-sudo sqlite3 $(docker volume inspect vesta_vesta-instance --format '{{ .Mountpoint }}')/app/instance/vesta.db
+# Replace 'vesta_vesta-instance' with your volume name if different (e.g. deploydir_vesta-instance)
+sudo sqlite3 $(docker volume inspect vesta_vesta-instance --format '{{ .Mountpoint }}')/vesta.db
 ```
 
 ### Useful SQL Commands
