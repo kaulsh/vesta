@@ -1,5 +1,5 @@
 # Multi-stage build for smaller final image
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 # Set working directory
 WORKDIR /app
@@ -48,32 +48,9 @@ ENV PATH=/root/.local/bin:$PATH
 # Expose port
 EXPOSE 8000
 
-# Use gunicorn for production
-RUN pip install --no-cache-dir gunicorn
-
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/').read()"
 
-# Run the application with gunicorn
-CMD if [ "${REDIRECT_TO_HTTPS}" = "true" ]; then \
-      # HTTP redirect instance (lightweight, no SSL, minimal workers)
-      gunicorn --bind 0.0.0.0:8000 \
-               --workers 2 --threads 2 --timeout 120 \
-               --worker-class sync \
-               --graceful-timeout 30 \
-               --keep-alive 5 \
-               "app:create_app(redirect_to_https=True)"; \
-    elif [ -f "${SSL_CERT:-}" ] && [ -f "${SSL_KEY:-}" ]; then \
-      # HTTPS instance with SSL
-      gunicorn --bind 0.0.0.0:8000 \
-               --certfile="${SSL_CERT}" \
-               --keyfile="${SSL_KEY}" \
-               --workers 2 --threads 2 --timeout 60 \
-               "app:create_app()"; \
-    else \
-      # HTTP instance without SSL (fallback)
-      gunicorn --bind 0.0.0.0:8000 \
-               --workers 2 --threads 2 --timeout 60 \
-               "app:create_app()"; \
-    fi
+# Run the Flask app (behind nginx)
+CMD ["flask", "run", "--host=0.0.0.0", "--port=8000"]
