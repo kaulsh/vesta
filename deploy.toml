@@ -5,3 +5,4 @@ port = 8000
 
 [build]
 dockerfile_path = "app/Dockerfile"
+docker_volumes = ["/home/kaulsh/data/vesta:/app/instance"]
