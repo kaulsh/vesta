@@ -1,0 +1,7 @@
+name = "vesta"
+type = "proxy"
+hosts = ["vesta.shashank.gg"]
+port = 8000
+
+[build]
+dockerfile_path = "app/Dockerfile"
